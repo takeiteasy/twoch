@@ -1,7 +1,5 @@
 ;;;; package.lisp
 
 (defpackage #:twoch
-  (:use
-   #:cl
-   #:trivial-main-thread)
+  (:use #:cl)
   (:local-nicknames (:n :ninglex)))

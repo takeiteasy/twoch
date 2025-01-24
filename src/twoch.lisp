@@ -14,5 +14,4 @@
 			*compile-file-pathname*))))
 
 (n:start :static-root *static-root*
-	 :port "8080"
 	 :address "0.0.0.0")

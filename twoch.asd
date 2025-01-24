@@ -6,11 +6,11 @@
     :license  "Specify license here"
     :version "0.0.1"
     :serial t
-    :depends-on (:hunchentoot)
+    :depends-on (:hunchentoot
 		 :ningle
 		 :lack
 		 :clack)
-	:pathname "src"
+    :pathname "src"
     :components ((:file "trivial-rfc-1123")
 		 (:file "ninglex")
                  (:file "package")

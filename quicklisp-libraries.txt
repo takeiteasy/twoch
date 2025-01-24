@@ -2,3 +2,9 @@ ningle
 clack
 lack
 hunchentoot
+lack-middleware-backtrace
+lack-middleware-static
+uiop
+bordeaux-threads
+usocket
+alexandria
