@@ -8,13 +8,13 @@
     :serial t
     :depends-on (:hunchentoot
                  :ningle
-		         :lack
-		         :clack
-		         :spinneret
-		         :parenscript
-		         :spinneret/ps
-		         :cl-css
-		         :jonathan)
+                 :lack
+                 :clack
+                 :spinneret
+                 :parenscript
+                 :spinneret/ps
+                 :cl-css
+                 :jonathan)
     :pathname "src"
     :components ((:file "ninglex")
                  (:file "package")
