@@ -6,8 +6,7 @@ default: clean run
 
 build: Dockerfile
 	docker build --no-cache -t $(APPNAME) . \
-		--build-arg SBCL_VERSION=$(shell cat VERSION-SBCL.txt) \
-		--build-arg QUICKLISP_PKGS="$(shell tr '\n' ' ' < quicklisp-libraries.txt)"
+		--build-arg PKGS="$(shell tr '\n' ' ' < quicklisp.txt)"
 
 rebuild: veryclean build run
 
@@ -25,7 +24,7 @@ clean: stop
 
 run:
 	docker run -d \
-			--mount type=bind,source=$(PWD),target=/src \
+			--mount type=bind,source=$(PWD),target=/$(APPNAME) \
 			--name $(APPNAME) \
 			--publish 2345:5000 \
 	$(APPNAME) sbcl --eval '(ql:quickload "asdf")' \

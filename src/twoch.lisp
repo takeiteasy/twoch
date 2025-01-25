@@ -2,16 +2,22 @@
 
 (in-package #:twoch)
 
-(n:with-route ("/" params)
+(with-route ("/" params)
   (declare (ignore params))
-  (n:html-response
-   "<p>hello world!</p>"))
+  (html-response
+   (with-output-to-string (*html*)
+     (with-html
+       (:doctype)
+       (:html
+         (:head
+           (:title "title"))
+         (:body (:h1 "Hello Common Lisp!")))))))
 
 (defparameter *static-root*
   (merge-pathnames #P"static/"
-		   (uiop:pathname-directory-pathname
-		    (or *load-pathname*
-			*compile-file-pathname*))))
+                   (uiop:pathname-directory-pathname
+                     (or *load-pathname*
+                         *compile-file-pathname*))))
 
-(n:start :static-root *static-root*
-	 :address "0.0.0.0")
+(start :static-root *static-root*
+       :address "0.0.0.0")

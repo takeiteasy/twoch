@@ -7,11 +7,15 @@
     :version "0.0.1"
     :serial t
     :depends-on (:hunchentoot
-		 :ningle
-		 :lack
-		 :clack)
+                 :ningle
+		         :lack
+		         :clack
+		         :spinneret
+		         :parenscript
+		         :spinneret/ps
+		         :cl-css
+		         :jonathan)
     :pathname "src"
-    :components ((:file "trivial-rfc-1123")
-		 (:file "ninglex")
+    :components ((:file "ninglex")
                  (:file "package")
                  (:file "twoch")))

@@ -8,3 +8,7 @@ uiop
 bordeaux-threads
 usocket
 alexandria
+spinneret
+cl-css
+jonathan
+parenscript
