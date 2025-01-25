@@ -40,35 +40,35 @@
      ("#thrdlist .thrd"
       :margin-right 0.3em))))
 
-
+(defparameter *index-page*
+  (with-html-string
+      (with-html (:doctype)
+        (:html
+         (:head
+          (:title "title"))
+         (:style (:raw *style*))
+         (:body
+          (:div.header#title
+           (:div.header-inner
+            (:h1 "Programming")))
+          (:div.header#thrdlist
+           (:div.header-inner
+            (:div.links
+             (:raw
+              (let ((links (list '("#newthrd" . "New Thread")
+                                 '("/all" . "All Threads")
+                                 '("/hot" . "Most Popular Threads"))))
+                (format nil "~{~a~^ / ~}"
+                        (mapcar (lambda (link)
+                                  (with-html-string
+                                      (:a :href (car link) (cdr link))))
+                                links))))
+             (:div
+              (:p "test"))))))))))
 
 (with-route ("/" params)
   (declare (ignore params))
-  (html-response
-   (with-output-to-string (*html*)
-     (with-html (:doctype)
-       (:html
-        (:head
-         (:title "title"))
-        (:style (:raw *style*))
-        (:body
-         (:div.header#title
-          (:div.header-inner
-           (:h1 "Programming")))
-         (:div.header#thrdlist
-          (:div.header-inner
-           (:div.links
-            (:raw
-             (let ((links (list '("#newthrd" . "New Thread")
-                                '("/all" . "All Threads")
-                                '("/hot" . "Most Popular Threads"))))
-               (format nil "~{~a~^ / ~}"
-                       (mapcar (lambda (link)
-                                 (with-html-string
-                                     (:a :href (car link) (cdr link))))
-                               links))))
-            (:div
-             (:p "test")))))))))))
+  (html-response *index-page*))
 
 (start :static-root "/twoch/static/"
        :address "0.0.0.0")

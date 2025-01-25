@@ -12,3 +12,4 @@ spinneret
 cl-css
 jonathan
 parenscript
+sxql
