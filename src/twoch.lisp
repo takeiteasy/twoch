@@ -40,6 +40,8 @@
      ("#thrdlist .thrd"
       :margin-right 0.3em))))
 
+
+
 (with-route ("/" params)
   (declare (ignore params))
   (html-response
@@ -65,7 +67,8 @@
                                  (with-html-string
                                      (:a :href (car link) (cdr link))))
                                links))))
-            (:span "test"))))))))))
+            (:div
+             (:p "test")))))))))))
 
 (start :static-root "/twoch/static/"
        :address "0.0.0.0")
