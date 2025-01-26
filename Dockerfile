@@ -3,7 +3,7 @@ FROM alpine:latest
 ARG PKGS
 
 RUN apk update && apk upgrade
-RUN apk add sbcl curl
+RUN apk add sbcl curl sqlite-libs
 RUN curl -o /tmp/quicklisp.lisp 'https://beta.quicklisp.org/quicklisp.lisp'
 RUN sbcl --noinform --non-interactive --load /tmp/quicklisp.lisp --eval \
         "(quicklisp-quickstart:install)"

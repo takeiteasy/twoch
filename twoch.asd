@@ -15,6 +15,7 @@
                  :spinneret/ps
                  :cl-css
                  :jonathan
+                 :sqlite
                  :sxql)
     :pathname "src"
     :components ((:file "ninglex")

@@ -1,6 +1,6 @@
 APPNAME = twoch
 
-.PHONY: default build cleanbuild veryclean clean run cleanrun stop start
+.PHONY: default build rebuild veryclean clean run restart stop start
 
 default: clean run
 
@@ -8,7 +8,7 @@ build: Dockerfile
 	docker build --no-cache -t $(APPNAME) . \
 		--build-arg PKGS="$(shell tr '\n' ' ' < quicklisp.txt)"
 
-cleanbuild: veryclean build run
+rebuild: veryclean build
 
 veryclean: clean
 	docker image rm $(APPNAME)
@@ -23,7 +23,7 @@ clean: stop
 	docker rm $(APPNAME)
 
 log:
-	docker logs $(shell docker container ls --all | grep -n "" | grep "^2:" | cut -d: -f2- | cut -d' ' -f1)
+	docker logs $(shell docker container ls --all | grep "$(APPNAME)" | cut -d' ' -f1)
 
 run:
 	docker run -d \
@@ -34,4 +34,4 @@ run:
 					--eval '(asdf:load-system "$(APPNAME)")' \
 					--eval '(loop)'
 
-cleanrun: clean run
+restart: clean run
