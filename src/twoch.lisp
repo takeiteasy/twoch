@@ -38,7 +38,35 @@
       :font-size 14px
       :padding-bottom 5px)
      ("#thrdlist .thrd"
-      :margin-right 0.3em))))
+      :margin-right 0.3em)
+     ("input.submit"
+      :width initial
+      :font-size 12px)
+     (form
+      :display block
+      :margin-top 0em)
+     ("input textarea"
+      :box-sizing border-box
+      :font-size 12px
+      :width 95%)
+     (.label
+      :text-align right)
+     ("input:not(.submit)"
+      :background-color "#f7f7f7"
+      :border "1px solid #ababab"
+      :width 95%)
+     (table
+      :table-layout auto
+      :width 100%)
+     (textarea
+      :max-width "89vw"
+      :min-width "40vw"
+      :min-height "20vh"
+      :background-color "#f7f7f7"
+      :border "1px solid #ababab")
+     ("@media screen and (max-width: 480px)"
+      (a
+       :word-break break-all)))))
 
 (defparameter *index-page*
   (with-html-string
@@ -64,7 +92,43 @@
                                       (:a :href (car link) (cdr link))))
                                 links))))
              (:div
-              (:p "test"))))))))))
+              (:p "latest posts ...")))))
+          (:div.header#newthrd
+           (:div.header-inner :style (c:inline-css '(:padding-right 20px))
+                              (:span :style (c:inline-css '(:font-size 24px)) "New Thread")
+                              (:form :method "post"
+                                     :action "/post"
+                                     (:table
+                                      (:tbody
+                                       (:tr
+                                        (:td.label "Subject:")
+                                        (:td
+                                         (:input :name "subject"
+                                                 :value ""))
+                                        (:td.btns :colspan 2
+                                                  :style (c:inline-css '(text-align right))
+                                                  (:input.submit :type "submit"
+                                                                 :value "Create New Thread")
+                                                  (:input.submit :type "submit"
+                                                                 :name "preview"
+                                                                 :value "Preview")))
+                                       (:tr
+                                        (:td.label "Name:")
+                                        (:td
+                                         (:input :name "name"
+                                                 :value ""))
+                                        (:td.label "Email:")
+                                        (:td
+                                         (:input :name "email"
+                                                 :value ""
+                                                 :style (c:inline-css '(:width 100%)))))
+                                       (:tr
+                                        (:td)
+                                        (:td :colspan 3
+                                             (:textarea :name "comment"
+                                                        :rows 8
+                                                        :cols 72
+                                                        :style (c:inline-css '(:width 100%)))))))))))))))
 
 (with-route ("/" params)
   (declare (ignore params))

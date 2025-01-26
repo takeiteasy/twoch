@@ -2,7 +2,6 @@
 
 (defpackage #:twoch
   (:use #:cl #:ninglex #:spinneret)
-  (:local-nicknames (:sql :sqlite)
-                    (:ps :parenscript)
+  (:local-nicknames (:ps :parenscript)
                     (:jo :jonathan)
                     (:c :cl-css)))
