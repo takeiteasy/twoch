@@ -26,11 +26,10 @@ log:
 	docker logs $(shell docker container ls --all | grep "$(APPNAME)" | cut -d' ' -f1)
 
 run:
-	docker run -d \
-			--mount type=bind,source=$(PWD),target=/$(APPNAME) \
+	docker run -d 	--mount type=bind,source=$(PWD),target=/$(APPNAME) \
 			--name $(APPNAME) \
 			--publish 2345:5000 \
-	$(APPNAME) sbcl --eval '(ql:quickload "asdf")' \
+			$(APPNAME) sbcl --eval '(ql:quickload "asdf")' \
 					--eval '(asdf:load-system "$(APPNAME)")' \
 					--eval '(loop)'
 

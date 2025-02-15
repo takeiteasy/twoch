@@ -1,4 +1,3 @@
-sqlite
 ningle
 clack
 lack
@@ -13,4 +12,4 @@ spinneret
 cl-css
 jonathan
 parenscript
-sxql
+mito

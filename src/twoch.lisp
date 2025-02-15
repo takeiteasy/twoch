@@ -2,6 +2,17 @@
 
 (in-package #:twoch)
 
+(mito:connect-toplevel :sqlite3 :database-name "twoch.db")
+
+(mito:deftable threads ()
+  ((id :col-type :integer :auto-increment t :primary-key t)
+   (subject :col-type :text)
+   (email :col-type :text)
+   (name :col-type :text :not-null t :default "Anonymous")
+   (comment :col-type :text :not-null t)))
+
+(mito:ensure-table-exists 'threads)
+
 (defparameter *style*
   (c:css
    '((body
@@ -133,6 +144,17 @@
 (with-route ("/" params)
   (declare (ignore params))
   (html-response *index-page*))
+
+(with-route ("/post" params :method :POST)
+  (with-request-params params ((subject "subject")
+                               (name "name")
+                               (email "email")
+                               (comment "comment"))
+    (if (zerop (length comment))
+        (html-response "Comment is required")
+        (let ((name (if (zerop (length name)) "Anonymous" name)))
+          (mito:insert-dao (make-instance 'threads :subject subject :name name :email email :comment comment))
+          (string-response (format nil "~a ~a ~a ~a" subject name email comment))))))
 
 (start :static-root "/twoch/static/"
        :address "0.0.0.0")
