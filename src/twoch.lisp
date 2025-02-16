@@ -13,6 +13,8 @@
 
 (mito:ensure-table-exists 'threads)
 
+;; TODO: Replies table
+
 (defparameter *style*
   (style:css
    '((body
@@ -27,6 +29,8 @@
       :position relative
       :min-height 97%
       :color black)
+     (a
+      :word-break break-all)
      ("#title"
       :text-align center)
      (".header-inner > h1"
@@ -67,9 +71,6 @@
       :background-color "#f7f7f7"
       :border "1px solid #ababab"
       :width 95%)
-     (table
-      :table-layout auto
-      :width 100%)
      (textarea
       :max-width "89vw"
       :min-width "40vw"
@@ -145,6 +146,11 @@
       :overflow auto
       :outline none
       :box-shadow none)
+     (table
+      :font-size 12px
+      :margin-top 5px)
+     ("textarea .reply"
+      :box-sizing border-box)
      ("@media screen and (max-width: 480px)"
       (a
        :word-break break-all)))))
@@ -188,6 +194,37 @@
                                                   :cols 72
                                                   :style (style:inline-css '(:width 100%))))))))))))
 
+(defparameter *reply-thread-box*
+  (with-html-string
+    (:form :method "post"
+           :action "/reply"
+           (:table
+            (:tbody
+             (:tr
+              (:td.label "Name:")
+              (:td
+               (:input :name "Name"
+                       :value ""))
+              (:td.label "Email:")
+              (:td
+               (:input :name "email"
+                       :value ""))
+              (:td.btns :colspan 2
+                        :style (style:inline-css '(text-align right))
+                        (:input.submit :type "submit"
+                                       :value "Create New Thread")
+                        (:input.submit :type "submit"
+                                       :name "preview"
+                                       :value "Preview")))
+             (:tr
+              (:td.postfieldleft)
+              (:td :colspan 5
+                   (:textarea.reply :name "comment" :rows 8 :cols 72 :style (style:inline-css '(:width 100%))))
+              (:tr
+               (:td :colspan 6
+                    (:a :href "#" "Entire Thread")
+                    " "
+                    (:a :href "#" "Thread List")))))))))
 
 (defun index-page (header)
   (with-html-string
@@ -218,7 +255,7 @@
           (:div
            (:raw
             (let ((threads (mito:select-dao 'threads
-                             (sxql:order-by (:asc :created-at))
+                             (sxql:order-by (:desc :created-at))
                              (sxql:limit 10))))
               (format nil "~{~a~^ / ~}"
                       (if threads
@@ -230,37 +267,39 @@
                           "No threads yet")))))))
         (:raw
          (let ((threads (mito:select-dao 'threads
-                          (sxql:order-by (:asc :created-at))
+                          (sxql:order-by (:desc :updated-at))
                           (sxql:limit 10))))
            (format nil "~{~a~^ / ~}"
                    (if threads
-                       (mapcar (lambda (thread)
-                                 (with-slots (id subject name email comment) thread
-                                   (with-html-string
-                                     (:div.outer
-                                      (:div.inner
-                                       (:div.thrdmenu
-                                        (:a :href "#" "▼")
-                                        (:a :href "#" "▲")
-                                        (:a :href "#" "■"))
-                                       (:div.subject
-                                        (:b (format nil "[~a" id))
-                                        ":"
-                                        (:b "0]") ;; TODO: Number of comments
-                                        (:h2
-                                         (:a :href "#" subject)))
-                                       (:div.post
-                                        (:h3.posthead
-                                         (:button.num :onclick "#" "1")
-                                         " Name: "
-                                         (:span.name (format nil " ~a " name))
-                                         (:span.posttime "2014-04-01 16:16")) ;; TODO: `created-at` to timestamp
-                                        (:div.body
-                                         (:div.container
-                                          (:textarea.texme :readonly t comment)))))))))
-                               threads)
-                       "No threads yet"))
-           ))
+                       (let ((i 0))
+                         (mapcar (lambda (thread)
+                                   (incf i)
+                                   (with-slots (id subject name email comment) thread
+                                     (with-html-string
+                                       (:div.outer
+                                        (:div.inner
+                                         (:div.thrdmenu
+                                          (:a :href "#" "▼")
+                                          (:a :href "#" "▲")
+                                          (:a :href "#" "■"))
+                                         (:div.subject
+                                          (:b (format nil "[~a" i))
+                                          ":"
+                                          (:b "0]") ;; TODO: Number of comments
+                                          (:h2
+                                           (:a :href "#" subject)))
+                                         (:div.post
+                                          (:h3.posthead
+                                           (:button.num :onclick "#" "1")
+                                           " Name: "
+                                           (:span.name (format nil " ~a " name))
+                                           (:span.posttime "2014-04-01 16:16")) ;; TODO: `created-at` to timestamp
+                                          (:div.body
+                                           (:div.container
+                                            (:textarea.texme :readonly t comment))))
+                                         (:raw *reply-thread-box*))))))
+                                 threads))
+                       "No threads yet"))))
         (:raw *new-thread-box*))))))
 
 (with-route ("/" params)
@@ -278,6 +317,16 @@
         (let ((name (if (zerop (length name)) "Anonymous" name)))
           (mito:insert-dao (make-instance 'threads :subject subject :name name :email email :comment comment))
           (string-response (format nil "~a ~a ~a ~a" subject name email comment))))))
+
+(with-route ("/reply" params :method :POST)
+  (with-request-params params ((name "name")
+                               (email "email")
+                               (comment "comment"))
+    (let ((name (if (zerop (length name))
+                    "Anonymous"
+                    name)))
+      ;; TODO: Insert reply ...
+      )))
 
 (start :static-root "/twoch/static/"
        :address "0.0.0.0")
