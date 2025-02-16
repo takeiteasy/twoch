@@ -6,7 +6,7 @@
 
 (mito:deftable threads ()
   ((id :col-type :integer :auto-increment t :primary-key t)
-   (subject :col-type :text)
+   (subject :col-type :text :not-null t)
    (email :col-type :text)
    (name :col-type :text :not-null t :default "Anonymous")
    (comment :col-type :text :not-null t)))
@@ -14,7 +14,7 @@
 (mito:ensure-table-exists 'threads)
 
 (defparameter *style*
-  (c:css
+  (style:css
    '((body
       :display block
       :margin 8px
@@ -103,10 +103,20 @@
                                       (:a :href (car link) (cdr link))))
                                 links))))
              (:div
-              (:p "latest posts ...")))))
+              (:raw
+               (let ((threads (mito:select-dao 'threads
+                                (sxql:order-by (:asc :created-at))
+                                (sxql:limit 10))))
+                 (format nil "~{~a~^ / ~}" (if threads
+                                               (mapcar (lambda (thread)
+                                                         (with-slots (id subject) thread
+                                                           (with-html-string
+                                                             (:span.thread (:a :href (format nil "/thread/~a" id) (format nil "#~a: ~a" id subject))))))
+                                                   threads)
+                                               "No threads yet"))))))))
           (:div.header#newthrd
-           (:div.header-inner :style (c:inline-css '(:padding-right 20px))
-                              (:span :style (c:inline-css '(:font-size 24px)) "New Thread")
+           (:div.header-inner :style (style:inline-css '(:padding-right 20px))
+                              (:span :style (style:inline-css '(:font-size 24px)) "New Thread")
                               (:form :method "post"
                                      :action "/post"
                                      (:table
@@ -117,7 +127,7 @@
                                          (:input :name "subject"
                                                  :value ""))
                                         (:td.btns :colspan 2
-                                                  :style (c:inline-css '(text-align right))
+                                                  :style (style:inline-css '(text-align right))
                                                   (:input.submit :type "submit"
                                                                  :value "Create New Thread")
                                                   (:input.submit :type "submit"
@@ -132,14 +142,14 @@
                                         (:td
                                          (:input :name "email"
                                                  :value ""
-                                                 :style (c:inline-css '(:width 100%)))))
+                                                 :style (style:inline-css '(:width 100%)))))
                                        (:tr
                                         (:td)
                                         (:td :colspan 3
                                              (:textarea :name "comment"
                                                         :rows 8
                                                         :cols 72
-                                                        :style (c:inline-css '(:width 100%)))))))))))))))
+                                                        :style (style:inline-css '(:width 100%)))))))))))))))
 
 (with-route ("/" params)
   (declare (ignore params))
@@ -150,8 +160,9 @@
                                (name "name")
                                (email "email")
                                (comment "comment"))
-    (if (zerop (length comment))
-        (html-response "Comment is required")
+    (if (or (zerop (length comment))
+            (zerop (length subject)))
+        (html-response "Comment and Subject are required")
         (let ((name (if (zerop (length name)) "Anonymous" name)))
           (mito:insert-dao (make-instance 'threads :subject subject :name name :email email :comment comment))
           (string-response (format nil "~a ~a ~a ~a" subject name email comment))))))
