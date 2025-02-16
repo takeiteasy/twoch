@@ -228,30 +228,39 @@
                                         (:span.thread (:a :href (format nil "/thread/~a" id) (format nil "#~a: ~a" id subject))))))
                                   threads)
                           "No threads yet")))))))
-        (:div.outer
-         (:div.inner
-          (:div.thrdmenu
-           (:a :href "#" "▼")
-           (:a :href "#" "▲")
-           (:a :href "#" "■"))
-          (:div.subject
-           (:b "[N")
-           ":"
-           (:b "N]")
-           (:h2
-            (:a :href "#" "Subject")))
-          (:div.post
-           (:h3.posthead
-            (:button.num :onclick "#" "1")
-            " Name: "
-            (:span.name " Anonymous ")
-            (:span.posttime "2014-04-01 16:16"))
-           (:div.body
-            (:div.container
-             (:textarea.texme :readonly t "```python
-for i in range(0):
-    print(i)
-```"))))))
+        (:raw
+         (let ((threads (mito:select-dao 'threads
+                          (sxql:order-by (:asc :created-at))
+                          (sxql:limit 10))))
+           (format nil "~{~a~^ / ~}"
+                   (if threads
+                       (mapcar (lambda (thread)
+                                 (with-slots (id subject name email comment) thread
+                                   (with-html-string
+                                     (:div.outer
+                                      (:div.inner
+                                       (:div.thrdmenu
+                                        (:a :href "#" "▼")
+                                        (:a :href "#" "▲")
+                                        (:a :href "#" "■"))
+                                       (:div.subject
+                                        (:b (format nil "[~a" id))
+                                        ":"
+                                        (:b "0]") ;; TODO: Number of comments
+                                        (:h2
+                                         (:a :href "#" subject)))
+                                       (:div.post
+                                        (:h3.posthead
+                                         (:button.num :onclick "#" "1")
+                                         " Name: "
+                                         (:span.name (format nil " ~a " name))
+                                         (:span.posttime "2014-04-01 16:16")) ;; TODO: `created-at` to timestamp
+                                        (:div.body
+                                         (:div.container
+                                          (:textarea.texme :readonly t comment)))))))))
+                               threads)
+                       "No threads yet"))
+           ))
         (:raw *new-thread-box*))))))
 
 (with-route ("/" params)
