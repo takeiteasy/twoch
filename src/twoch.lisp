@@ -49,7 +49,8 @@
       :font-size 14px
       :padding-bottom 5px)
      ("#thrdlist .thrd"
-      :margin-right 0.3em)
+      :margin-right 0.3em
+      :text-decoration underline)
      ("input.submit"
       :width initial
       :font-size 12px)
@@ -79,7 +80,7 @@
       (a
        :word-break break-all)))))
 
-(defparameter *index-page*
+(defun index-page (header)
   (with-html-string
       (with-html (:doctype)
         (:html
@@ -89,7 +90,7 @@
          (:body
           (:div.header#title
            (:div.header-inner
-            (:h1 "Programming")))
+            (:h1 header)))
           (:div.header#thrdlist
            (:div.header-inner
             (:div.links
@@ -101,19 +102,20 @@
                         (mapcar (lambda (link)
                                   (with-html-string
                                       (:a :href (car link) (cdr link))))
-                                links))))
-             (:div
-              (:raw
-               (let ((threads (mito:select-dao 'threads
-                                (sxql:order-by (:asc :created-at))
-                                (sxql:limit 10))))
-                 (format nil "~{~a~^ / ~}" (if threads
-                                               (mapcar (lambda (thread)
-                                                         (with-slots (id subject) thread
-                                                           (with-html-string
-                                                             (:span.thread (:a :href (format nil "/thread/~a" id) (format nil "#~a: ~a" id subject))))))
-                                                   threads)
-                                               "No threads yet"))))))))
+                                links)))))
+            (:div
+             (:raw
+              (let ((threads (mito:select-dao 'threads
+                                              (sxql:order-by (:asc :created-at))
+                                              (sxql:limit 10))))
+                (format nil "~{~a~^ / ~}"
+                        (if threads
+                            (mapcar (lambda (thread)
+                                      (with-slots (id subject) thread
+                                        (with-html-string
+                                            (:span.thread (:a :href (format nil "/thread/~a" id) (format nil "#~a: ~a" id subject))))))
+                                    threads)
+                            "No threads yet")))))))
           (:div.header#newthrd
            (:div.header-inner :style (style:inline-css '(:padding-right 20px))
                               (:span :style (style:inline-css '(:font-size 24px)) "New Thread")
@@ -153,19 +155,19 @@
 
 (with-route ("/" params)
   (declare (ignore params))
-  (html-response *index-page*))
+  (html-response (index-page "Programming")))
 
 (with-route ("/post" params :method :POST)
   (with-request-params params ((subject "subject")
                                (name "name")
                                (email "email")
                                (comment "comment"))
-    (if (or (zerop (length comment))
-            (zerop (length subject)))
-        (html-response "Comment and Subject are required")
-        (let ((name (if (zerop (length name)) "Anonymous" name)))
-          (mito:insert-dao (make-instance 'threads :subject subject :name name :email email :comment comment))
-          (string-response (format nil "~a ~a ~a ~a" subject name email comment))))))
+                       (if (or (zerop (length comment))
+                               (zerop (length subject)))
+                           (html-response "Comment and Subject are required")
+                           (let ((name (if (zerop (length name)) "Anonymous" name)))
+                             (mito:insert-dao (make-instance 'threads :subject subject :name name :email email :comment comment))
+                             (string-response (format nil "~a ~a ~a ~a" subject name email comment))))))
 
 (start :static-root "/twoch/static/"
        :address "0.0.0.0")
