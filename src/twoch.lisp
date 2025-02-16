@@ -2,16 +2,36 @@
 
 (in-package #:twoch)
 
+(defvar *new-instance* (not (probe-file "twoch.db")))
+
 (mito:connect-toplevel :sqlite3 :database-name "twoch.db")
+
+(mito:deftable boards ()
+  ((id :col-type :integer :auto-increment t :primary-key t)
+   (name :col-type :text :not-null t :unique t)
+   (title :col-type :text :not-null t)))
 
 (mito:deftable threads ()
   ((id :col-type :integer :auto-increment t :primary-key t)
+   (board :references (boards id))
    (subject :col-type :text :not-null t)
    (email :col-type :text)
    (name :col-type :text :not-null t :default "Anonymous")
    (comment :col-type :text :not-null t)))
 
-(mito:ensure-table-exists 'threads)
+(defparameter *boards*
+  (list '("prog" . "Programming")
+        '("math" . "Mathematics")))
+
+(when *new-instance*
+      (mito:ensure-table-exists 'boards)
+      (mito:ensure-table-exists 'threads)
+      (let ((b *boards*))
+        (loop for (name . title) in b
+              do (progn
+                  (let ((dao (mito:find-dao 'boards :name name)))
+                    (when (not dao)
+                          (mito:insert-dao (make-instance 'boards :name name :title title))))))))
 
 ;; TODO: Replies table
 
@@ -226,16 +246,16 @@
                     " "
                     (:a :href "#" "Thread List")))))))))
 
-(defun index-page (header)
+(defun index-page (board header)
   (with-html-string
     (with-html (:doctype)
       (:html
        (:head
-        (:title "title"))
+        (:title header)
        (:style (:raw *style*))
        (:link :rel "stylesheet"
               :href "https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.15.6/styles/default.min.css")
-       (:script :src "/static/texme.js")
+       (:script :src "/static/texme.js"))
        (:body
         (:div.header#title
          (:div.header-inner
@@ -250,7 +270,7 @@
               (format nil "~{~a~^ / ~}"
                       (mapcar (lambda (link)
                                 (with-html-string
-                                  (:a :href (car link) (cdr link))))
+                                  (:a :href (format nil "/~a/~a" board (car link)) (cdr link))))
                               links)))))
           (:div
            (:raw
@@ -264,7 +284,7 @@
                                       (with-html-string
                                         (:span.thread (:a :href (format nil "/thread/~a" id) (format nil "#~a: ~a" id subject))))))
                                   threads)
-                          "No threads yet")))))))
+                          (list "No threads yet"))))))))
         (:raw
          (let ((threads (mito:select-dao 'threads
                           (sxql:order-by (:desc :updated-at))
@@ -299,12 +319,30 @@
                                             (:textarea.texme :readonly t comment))))
                                          (:raw *reply-thread-box*))))))
                                  threads))
-                       "No threads yet"))))
+                       (list "No threads yet")))))
         (:raw *new-thread-box*))))))
 
 (with-route ("/" params)
   (declare (ignore params))
-  (html-response (index-page "Programming")))
+  (with-html-string
+    (with-html (:doctype)
+      (:html
+       (:head
+        (:title "2ch"))
+       (:body
+        (:raw
+         (format nil "~{~a~^ / ~}"
+           (loop for (name . title) in *boards*
+                 collect (with-html-string
+                           (:a :href (format nil "/~a" name) (format nil "/~a/ - ~a" name title)))))))))))
+
+(defmacro define-board (name title &key (method :GET))
+  `(with-route ((format nil "/~a" ,name) params :method ,method)
+     (declare (ignore params))
+     (html-response (index-page ,name ,title))))
+
+(loop for (name . title) in *boards*
+      do (define-board name title))
 
 (with-route ("/post" params :method :POST)
   (with-request-params params ((subject "subject")
