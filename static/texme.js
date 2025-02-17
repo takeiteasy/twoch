@@ -312,14 +312,13 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
    * Set page to display the rendered content as HTML.
    */
   texme.renderPage = function () {
-    let md
-    const elements = window.document.getElementsByClassName('texme')
+    const elements = Array.from(window.document.getElementsByClassName('texme'))
     for (let element of elements) {
-      md = texme.render(element.value.trim())
+      let md = texme.render(element.value.trim())
       element.outerHTML = md
     }
 
-    var aCodes = document.getElementsByTagName('pre');
+    var aCodes = Array.from(window.document.getElementsByTagName('pre'));
     for (let code of aCodes) {
       hljs.highlightBlock(code);
     }

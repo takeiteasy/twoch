@@ -141,13 +141,13 @@
       :font-size 1em
       :font-weight normal
       :margin 0)
-     (".post .num, .post button"
+     (".post .num, .post button, .reply .num, .reply button"
       :font-weight bold
       :cursor pointer
       :border none
       :background none
       :padding 0)
-     (".post .name"
+     (".post .name, .reply .name"
       :font-weight bold
       :color green)
      (.body
@@ -172,8 +172,13 @@
      (table
       :font-size 12px
       :margin-top 5px)
-     ("textarea .reply"
+     ("textarea .replybox"
       :box-sizing border-box)
+     (.reply
+      :overflow auto
+      :background-color "#efefef")
+     (.recent
+      :margin "0.5em 0px")
      ("@media screen and (max-width: 480px)"
       (a
        :word-break break-all)))))
@@ -248,7 +253,7 @@
        (:tr
         (:td.postfieldleft)
         (:td :colspan 5
-             (:textarea.reply
+             (:textarea.replybox
               :name "comment"
               :rows 8 :cols 72
               :style (style:inline-css '(:width 100%))))
@@ -259,13 +264,38 @@
               (:a :href "#" "Thread List")))))))))
 
 (defun replies-truncated (board-id thread-id)
-  (let ((replies (select-dao 'replies
-                            (sql:where (:= :board board-id))
-                            (sql:where (:= :thread thread-id))
-                            (sql:limit 10))))
-    (if (< (length replies) 10)
-        replies
-        (list "Replies truncated"))))
+  (let ((reply-count (count-dao 'replies :board board-id :thread thread-id)))
+    (let ((html-out (if (> reply-count 5)
+                        (with-html-string
+                          (:div.recent
+                           "The 5 newest replies are shown below."
+                           (:br)
+                           (:a :href "#" "Read this thread from the beginning.")))
+                        "")))
+      (let ((rpls (select-dao 'replies
+                    (sql:where (:= :board board-id))
+                    (sql:where (:= :thread thread-id))
+                    (sql:order-by (:desc :created-at))
+                    (sql:limit 5)))
+            (i -1))
+        (setf html-out (concatenate 'string html-out
+                         (format nil "~{~a~^~}"
+                           (mapcar (lambda (rpl)
+                                     (incf i)
+                                     (with-slots (id name comment) rpl
+                                       (with-html-string
+                                         (:div.reply
+                                          (:h3.posthead
+                                           (:button.num :onclick "#" (format nil "~a" (- (+ reply-count (if (> reply-count 5) 3 2)) (abs (- i reply-count)))))
+                                           " Name: "
+                                           (:span.name (format nil " ~a " name))
+                                           (:span.posttime "2014-04-01 16:16"))
+                                          (:div.body
+                                           (:div.container
+                                            (:textarea.texme :readonly t comment)))))))
+                               (reverse rpls)))))
+        html-out))))
+
 
 (defun index-page (board-name header)
   (let ((brd (find-dao 'boards :name board-name)))
@@ -306,18 +336,21 @@
                                (sql:where (:= :board (slot-value brd 'id))))))
                 (format nil "~{~a~^ / ~}"
                   (if threads
-                      (mapcar (lambda (thread)
-                                (with-slots (id subject) thread
+                      (let ((i 0))
+                        (mapcar (lambda (thrd)
+                                  (incf i)
                                   (with-html-string
-                                    (:span.thread (:a :href (format nil "/thread/~a" id) (format nil "#~a: ~a" id subject))))))
-                          threads)
+                                    (:span.thread
+                                     (:a :href (format nil "/thread/~a" (slot-value thrd 'id))
+                                         (format nil "#~a: ~a (~a)" i (slot-value thrd 'subject) (count-dao 'replies :board (slot-value brd 'id) :thread (slot-value thrd 'id)))))))
+                            threads))
                       (list "No threads yet"))))))))
           (:raw
            (let ((threads (select-dao 'threads
                             (sql:order-by (:desc :updated-at))
                             (sql:limit 10)
                             (sql:where (:= :board (slot-value brd 'id))))))
-             (format nil "~{~a~^ / ~}"
+             (format nil "~{~a~^~}"
                (if threads
                    (let ((i 0))
                      (mapcar (lambda (thread)
@@ -333,7 +366,7 @@
                                      (:div.subject
                                       (:b (format nil "[~a" i))
                                       ":"
-                                      (:b "0]") ;; TODO: Number of comments
+                                      (:b (format nil "~a]" (count-dao 'replies :board (slot-value brd 'id) :thread (slot-value thread 'id))))
                                       (:h2
                                        (:a :href "#" subject)))
                                      (:div.post
@@ -345,6 +378,7 @@
                                       (:div.body
                                        (:div.container
                                         (:textarea.texme :readonly t comment))))
+                                     (:raw (replies-truncated (slot-value brd 'id) (slot-value thread 'id)))
                                      (:raw (reply-thread-box (slot-value brd 'id) (slot-value thread 'id))))))))
                          threads))
                    (list "No threads yet")))))
