@@ -52,6 +52,8 @@
       :color black)
      (a
       :word-break break-all)
+     ("a:link, a:visited"
+      :color blue)
      (.noshow
       :display none)
      ("#title"
@@ -179,6 +181,8 @@
       :background-color "#efefef")
      (.recent
       :margin "0.5em 0px")
+     ("#boards"
+      :text-align center)
      ("@media screen and (max-width: 480px)"
       (a
        :word-break break-all)))))
@@ -296,6 +300,11 @@
                                (reverse rpls)))))
         html-out))))
 
+(defun board-links ()
+  (format nil "~{~a~^ / ~}"
+    (loop for (name . title) in +boards+
+          collect (with-html-string
+                    (:a :href (format nil "/~a" name) (format nil "/~a/ - ~a" name title))))))
 
 (defun index-page (board-name header)
   (let ((brd (find-dao 'boards :name board-name)))
@@ -316,6 +325,10 @@
           (:div.header#title
            (:div.header-inner
             (:h1 header)))
+          (:div.header#boards
+           (:div.header-inner
+            (:raw
+             (board-links))))
           (:div.header#thrdlist
            (:div.header-inner
             (:div.links
@@ -342,7 +355,7 @@
                                   (with-html-string
                                     (:span.thread
                                      (:a :href (format nil "/thread/~a" (slot-value thrd 'id))
-                                         (format nil "#~a: ~a (~a)" i (slot-value thrd 'subject) (count-dao 'replies :board (slot-value brd 'id) :thread (slot-value thrd 'id)))))))
+                                         (format nil "#~a: ~a (~a)" i (slot-value thrd 'subject) (+ (count-dao 'replies :board (slot-value brd 'id) :thread (slot-value thrd 'id)) 1))))))
                             threads))
                       (list "No threads yet"))))))))
           (:raw
@@ -366,7 +379,7 @@
                                      (:div.subject
                                       (:b (format nil "[~a" i))
                                       ":"
-                                      (:b (format nil "~a]" (count-dao 'replies :board (slot-value brd 'id) :thread (slot-value thread 'id))))
+                                      (:b (format nil "~a]" (+ (count-dao 'replies :board (slot-value brd 'id) :thread (slot-value thread 'id)) 1)))
                                       (:h2
                                        (:a :href "#" subject)))
                                      (:div.post
@@ -394,10 +407,7 @@
        (:body
         (:h2 "Twoch")
         (:raw
-         (format nil "~{~a~^ / ~}"
-           (loop for (name . title) in +boards+
-                 collect (with-html-string
-                           (:a :href (format nil "/~a" name) (format nil "/~a/ - ~a" name title)))))))))))
+         (board-links)))))))
 
 (defmacro create-board-routes ()
   `(progn
