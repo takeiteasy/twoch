@@ -4,14 +4,14 @@
 
 (defvar *new-instance* (not (probe-file "twoch.db")))
 
-(mito:connect-toplevel :sqlite3 :database-name "twoch.db")
+(connect-toplevel :sqlite3 :database-name "twoch.db")
 
-(mito:deftable boards ()
+(deftable boards ()
   ((id :col-type :integer :auto-increment t :primary-key t)
    (name :col-type :text :not-null t :unique t)
    (title :col-type :text :not-null t)))
 
-(mito:deftable threads ()
+(deftable threads ()
   ((id :col-type :integer :auto-increment t :primary-key t)
    (board :references (boards id))
    (subject :col-type :text :not-null t)
@@ -19,23 +19,27 @@
    (name :col-type :text :not-null t :default "Anonymous")
    (comment :col-type :text :not-null t)))
 
+(deftable replies ()
+  ((id :col-type :integer :auto-increment t :primary-key t)
+   (board :references (boards id))
+   (thread :references (threads id))
+   (name :col-type :text :not-null t :default "Anonymous")
+   (email :col-type :text)
+   (comment :col-type :text :not-null t)))
+
 (defconstant +boards+
   '(("prog" . "Programming")
     ("math" . "Mathematics")))
 
+(ensure-table-exists 'boards)
+(ensure-table-exists 'threads)
+(ensure-table-exists 'replies)
 (when *new-instance*
-      (mito:ensure-table-exists 'boards)
-      (mito:ensure-table-exists 'threads)
-      (let ((b +boards+))
-        (loop for (name . title) in b
-              do (progn
-                  (let ((dao (mito:find-dao 'boards :name name)))
-                    (when (not dao)
-                          (mito:insert-dao (make-instance 'boards :name name :title title))))))))
+      (loop for (name . title) in +boards+
+            do (when (not (find-dao 'boards :name name))
+                     (insert-dao (make-instance 'boards :name name :title title)))))
 
-;; TODO: Replies table
-
-(defparameter *style*
+(defconstant +style+
   (style:css
    '((body
       :display block
@@ -51,6 +55,8 @@
       :color black)
      (a
       :word-break break-all)
+     (.noshow
+      :display none)
      ("#title"
       :text-align center)
      (".header-inner > h1"
@@ -175,13 +181,15 @@
       (a
        :word-break break-all)))))
 
-(defparameter *new-thread-box*
+(defun new-thread-box (board-id)
   (with-html-string
     (:div.header#newthrd
      (:div.header-inner :style (style:inline-css '(:padding-right 20px))
                         (:span :style (style:inline-css '(:font-size 24px)) "New Thread")
                         (:form :method "post"
                                :action "/post"
+                               (:div.noshow
+                                (:input :name "board" :value board-id :type "hidden"))
                                (:table
                                 (:tbody
                                  (:tr
@@ -214,16 +222,19 @@
                                                   :cols 72
                                                   :style (style:inline-css '(:width 100%))))))))))))
 
-(defparameter *reply-thread-box*
+(defun reply-thread-box (board-id thread-id)
   (with-html-string
     (:form :method "post"
            :action "/reply"
+           (:div.noshow
+            (:input :name "board" :value board-id :type "hidden")
+            (:input :name "thread" :value thread-id :type "hidden"))
            (:table
             (:tbody
              (:tr
               (:td.label "Name:")
               (:td
-               (:input :name "Name"
+               (:input :name "name"
                        :value ""))
               (:td.label "Email:")
               (:td
@@ -232,7 +243,7 @@
               (:td.btns :colspan 2
                         :style (style:inline-css '(text-align right))
                         (:input.submit :type "submit"
-                                       :value "Create New Thread")
+                                       :value "Reply")
                         (:input.submit :type "submit"
                                        :name "preview"
                                        :value "Preview")))
@@ -246,52 +257,56 @@
                     " "
                     (:a :href "#" "Thread List")))))))))
 
-(defun index-page (board header)
-  (with-html-string
-    (with-html (:doctype)
-      (:html
-       (:head
-        (:title (format nil "Twoch - ~a" header))
-       (:style (:raw *style*))
-       (:link :rel "stylesheet"
-              :href "https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.15.6/styles/default.min.css")
-       (:script :src "/static/texme.js"))
-       (:body
-        (:div.header#title
-         (:div.header-inner
-          (:h1 header)))
-        (:div.header#thrdlist
-         (:div.header-inner
-          (:div.links
-           (:raw
-            (let ((links (list '("#newthrd" . "New Thread")
-                               '("/all" . "All Threads")
-                               '("/hot" . "Most Popular Threads"))))
-              (format nil "~{~a~^ / ~}"
+(defun index-page (board-name header)
+  (let ((brd (find-dao 'boards :name board-name)))
+    (when (not (eql (slot-value brd 'title) header))
+      (string-response "Board not found"))
+    (if brd
+        (with-html-string
+          (with-html (:doctype)
+            (:html
+             (:head
+              (:title (format nil "Twoch - ~a" header))
+              (:style (:raw +style+))
+              (:link :rel "stylesheet"
+                     :href "https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.15.6/styles/default.min.css")
+              (:script :src "/static/texme.js"))
+             (:body
+              (:div.header#title
+               (:div.header-inner
+                (:h1 header)))
+              (:div.header#thrdlist
+               (:div.header-inner
+                (:div.links
+                 (:raw
+                  (let ((links (list '("#newthrd" . "New Thread")
+                                     '("/all" . "All Threads")
+                                     '("/hot" . "Most Popular Threads"))))
+                    (format nil "~{~a~^ / ~}"
                       (mapcar (lambda (link)
                                 (with-html-string
-                                  (:a :href (format nil "/~a/~a" board (car link)) (cdr link))))
-                              links)))))
-          (:div
-           (:raw
-            (let ((threads (mito:select-dao 'threads
-                             (sxql:order-by (:desc :created-at))
-                             (sxql:limit 10)
-                             (sxql:where (:= :board board)))))
-              (format nil "~{~a~^ / ~}"
+                                  (:a :href (format nil "/~a/~a" board-name (car link)) (cdr link))))
+                          links)))))
+                (:div
+                 (:raw
+                  (let ((threads (select-dao 'threads
+                                   (sql:order-by (:desc :created-at))
+                                   (sql:limit 10)
+                                   (sql:where (:= :board (slot-value brd 'id))))))
+                    (format nil "~{~a~^ / ~}"
                       (if threads
                           (mapcar (lambda (thread)
                                     (with-slots (id subject) thread
                                       (with-html-string
                                         (:span.thread (:a :href (format nil "/thread/~a" id) (format nil "#~a: ~a" id subject))))))
-                                  threads)
+                              threads)
                           (list "No threads yet"))))))))
-        (:raw
-         (let ((threads (mito:select-dao 'threads
-                          (sxql:order-by (:desc :updated-at))
-                          (sxql:limit 10)
-                          (sxql:where (:= :board board)))))
-           (format nil "~{~a~^ / ~}"
+              (:raw
+               (let ((threads (select-dao 'threads
+                                (sql:order-by (:desc :updated-at))
+                                (sql:limit 10)
+                                (sql:where (:= :board (slot-value brd 'id))))))
+                 (format nil "~{~a~^ / ~}"
                    (if threads
                        (let ((i 0))
                          (mapcar (lambda (thread)
@@ -319,10 +334,11 @@
                                           (:div.body
                                            (:div.container
                                             (:textarea.texme :readonly t comment))))
-                                         (:raw *reply-thread-box*))))))
-                                 threads))
+                                         (:raw (reply-thread-box (slot-value brd 'id) (slot-value thread 'id))))))))
+                             threads))
                        (list "No threads yet")))))
-        (:raw *new-thread-box*))))))
+              (:raw (new-thread-box (slot-value brd 'id)))))))
+        (string-response "Board not found"))))
 
 (with-route ("/" params)
   (declare (ignore params))
@@ -332,6 +348,7 @@
        (:head
         (:title "Twoch"))
        (:body
+        (:h2 "Twoch")
         (:raw
          (format nil "~{~a~^ / ~}"
            (loop for (name . title) in +boards+
@@ -351,26 +368,48 @@
 (create-board-routes)
 
 (with-route ("/post" params :method :POST)
-  (with-request-params params ((subject "subject")
+  (with-request-params params ((board "board")
+                               (subject "subject")
                                (name "name")
                                (email "email")
                                (comment "comment"))
     (if (or (zerop (length comment))
             (zerop (length subject)))
         (html-response "Comment and Subject are required")
-        (let ((name (if (zerop (length name)) "Anonymous" name)))
-          (mito:insert-dao (make-instance 'threads :subject subject :name name :email email :comment comment))
-          (string-response (format nil "~a ~a ~a ~a" subject name email comment))))))
+        (let ((brd (find-dao 'boards :id board)))
+          (if brd
+              (let ((name (if (zerop (length name)) "Anonymous" name)))
+                (insert-dao (make-instance 'threads
+                              :board (slot-value brd 'id)
+                              :subject subject
+                              :name name
+                              :email email
+                              :comment comment))
+                (string-response "Post created successfully"))
+              (string-response "Board not found"))))))
 
 (with-route ("/reply" params :method :POST)
-  (with-request-params params ((name "name")
+  (with-request-params params ((board "board")
+                               (thread "thread")
+                               (name "name")
                                (email "email")
                                (comment "comment"))
-    (let ((name (if (zerop (length name))
-                    "Anonymous"
-                    name)))
-      ;; TODO: Insert reply ...
-      )))
+    (when (zerop (length comment))
+      (string-response "Comment is required"))
+    (let ((name (if (zerop (length name)) "Anonymous" name))
+          (brd (find-dao 'boards :id board)))
+      (when (not brd)
+            (string-response "Board not found"))
+      (let ((thrd (find-dao 'threads :id thread :board (slot-value brd 'id))))
+        (when (not thrd)
+              (string-response "Thread not found"))
+        (insert-dao (make-instance 'replies
+                              :board (slot-value brd 'id)
+                              :thread (slot-value thrd 'id)
+                              :name name
+                              :email email
+                              :comment comment))
+        (string-response "Reply created successfully")))))
 
 (start :static-root "/twoch/static/"
        :address "0.0.0.0")

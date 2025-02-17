@@ -1,7 +1,8 @@
 ;;;; package.lisp
 
 (defpackage #:twoch
-  (:use #:cl #:ninglex #:spinneret)
+  (:use #:cl #:ninglex #:spinneret #:mito)
   (:local-nicknames (:js :parenscript)
                     (:json :jonathan)
-                    (:style :cl-css)))
+                    (:style :cl-css)
+                    (:sql :sxql)))
