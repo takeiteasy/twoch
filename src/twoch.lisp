@@ -2,8 +2,6 @@
 
 (in-package #:twoch)
 
-(defvar *new-instance* (not (probe-file "twoch.db")))
-
 (connect-toplevel :sqlite3 :database-name "twoch.db")
 
 (deftable boards ()
@@ -34,10 +32,9 @@
 (ensure-table-exists 'boards)
 (ensure-table-exists 'threads)
 (ensure-table-exists 'replies)
-(when *new-instance*
-      (loop for (name . title) in +boards+
-            do (when (not (find-dao 'boards :name name))
-                     (insert-dao (make-instance 'boards :name name :title title)))))
+(loop for (name . title) in +boards+
+      do (when (not (find-dao 'boards :name name))
+               (insert-dao (make-instance 'boards :name name :title title))))
 
 (defconstant +style+
   (style:css
@@ -184,161 +181,174 @@
 (defun new-thread-box (board-id)
   (with-html-string
     (:div.header#newthrd
-     (:div.header-inner :style (style:inline-css '(:padding-right 20px))
-                        (:span :style (style:inline-css '(:font-size 24px)) "New Thread")
-                        (:form :method "post"
-                               :action "/post"
-                               (:div.noshow
-                                (:input :name "board" :value board-id :type "hidden"))
-                               (:table
-                                (:tbody
-                                 (:tr
-                                  (:td.label "Subject:")
-                                  (:td
-                                   (:input :name "subject"
-                                           :value ""))
-                                  (:td.btns :colspan 2
-                                            :style (style:inline-css '(text-align right))
-                                            (:input.submit :type "submit"
-                                                           :value "Create New Thread")
-                                            (:input.submit :type "submit"
-                                                           :name "preview"
-                                                           :value "Preview")))
-                                 (:tr
-                                  (:td.label "Name:")
-                                  (:td
-                                   (:input :name "name"
-                                           :value ""))
-                                  (:td.label "Email:")
-                                  (:td
-                                   (:input :name "email"
-                                           :value ""
-                                           :style (style:inline-css '(:width 100%)))))
-                                 (:tr
-                                  (:td)
-                                  (:td :colspan 3
-                                       (:textarea :name "comment"
-                                                  :rows 8
-                                                  :cols 72
-                                                  :style (style:inline-css '(:width 100%))))))))))))
+     (:div.header-inner
+      :style (style:inline-css '(:padding-right 20px))
+      (:span :style (style:inline-css '(:font-size 24px)) "New Thread")
+      (:form
+       :method "post" :action "/post"
+       (:div.noshow
+        (:input :name "board" :value board-id :type "hidden"))
+       (:table
+        (:tbody
+         (:tr
+          (:td.label "Subject:")
+          (:td
+           (:input :name "subject"
+                   :value ""))
+          (:td.btns :colspan 2
+                    :style (style:inline-css '(text-align right))
+                    (:input.submit :type "submit"
+                                   :value "Create New Thread")
+                    (:input.submit :type "submit"
+                                   :name "preview"
+                                   :value "Preview")))
+         (:tr
+          (:td.label "Name:")
+          (:td
+           (:input :name "name"
+                   :value ""))
+          (:td.label "Email:")
+          (:td
+           (:input :name "email"
+                   :value ""
+                   :style (style:inline-css '(:width 100%)))))
+         (:tr
+          (:td)
+          (:td :colspan 3
+               (:textarea :name "comment"
+                          :rows 8
+                          :cols 72
+                          :style (style:inline-css '(:width 100%))))))))))))
 
 (defun reply-thread-box (board-id thread-id)
   (with-html-string
-    (:form :method "post"
-           :action "/reply"
-           (:div.noshow
-            (:input :name "board" :value board-id :type "hidden")
-            (:input :name "thread" :value thread-id :type "hidden"))
-           (:table
-            (:tbody
-             (:tr
-              (:td.label "Name:")
-              (:td
-               (:input :name "name"
-                       :value ""))
-              (:td.label "Email:")
-              (:td
-               (:input :name "email"
-                       :value ""))
-              (:td.btns :colspan 2
-                        :style (style:inline-css '(text-align right))
-                        (:input.submit :type "submit"
-                                       :value "Reply")
-                        (:input.submit :type "submit"
-                                       :name "preview"
-                                       :value "Preview")))
-             (:tr
-              (:td.postfieldleft)
-              (:td :colspan 5
-                   (:textarea.reply :name "comment" :rows 8 :cols 72 :style (style:inline-css '(:width 100%))))
-              (:tr
-               (:td :colspan 6
-                    (:a :href "#" "Entire Thread")
-                    " "
-                    (:a :href "#" "Thread List")))))))))
+    (:form
+     :method "post" :action "/reply"
+     (:div.noshow
+      (:input :name "board" :value board-id :type "hidden")
+      (:input :name "thread" :value thread-id :type "hidden"))
+     (:table
+      (:tbody
+       (:tr
+        (:td.label "Name:")
+        (:td
+         (:input :name "name"
+                 :value ""))
+        (:td.label "Email:")
+        (:td
+         (:input :name "email"
+                 :value ""))
+        (:td.btns :colspan 2
+                  :style (style:inline-css '(text-align right))
+                  (:input.submit :type "submit"
+                                 :value "Reply")
+                  (:input.submit :type "submit"
+                                 :name "preview"
+                                 :value "Preview")))
+       (:tr
+        (:td.postfieldleft)
+        (:td :colspan 5
+             (:textarea.reply
+              :name "comment"
+              :rows 8 :cols 72
+              :style (style:inline-css '(:width 100%))))
+        (:tr
+         (:td :colspan 6
+              (:a :href "#" "Entire Thread")
+              " "
+              (:a :href "#" "Thread List")))))))))
+
+(defun replies-truncated (board-id thread-id)
+  (let ((replies (select-dao 'replies
+                            (sql:where (:= :board board-id))
+                            (sql:where (:= :thread thread-id))
+                            (sql:limit 10))))
+    (if (< (length replies) 10)
+        replies
+        (list "Replies truncated"))))
 
 (defun index-page (board-name header)
   (let ((brd (find-dao 'boards :name board-name)))
+    (when (not brd)
+          (string-response "Board not found"))
     (when (not (eql (slot-value brd 'title) header))
-      (string-response "Board not found"))
-    (if brd
-        (with-html-string
-          (with-html (:doctype)
-            (:html
-             (:head
-              (:title (format nil "Twoch - ~a" header))
-              (:style (:raw +style+))
-              (:link :rel "stylesheet"
-                     :href "https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.15.6/styles/default.min.css")
-              (:script :src "/static/texme.js"))
-             (:body
-              (:div.header#title
-               (:div.header-inner
-                (:h1 header)))
-              (:div.header#thrdlist
-               (:div.header-inner
-                (:div.links
-                 (:raw
-                  (let ((links (list '("#newthrd" . "New Thread")
-                                     '("/all" . "All Threads")
-                                     '("/hot" . "Most Popular Threads"))))
-                    (format nil "~{~a~^ / ~}"
-                      (mapcar (lambda (link)
-                                (with-html-string
-                                  (:a :href (format nil "/~a/~a" board-name (car link)) (cdr link))))
-                          links)))))
-                (:div
-                 (:raw
-                  (let ((threads (select-dao 'threads
-                                   (sql:order-by (:desc :created-at))
-                                   (sql:limit 10)
-                                   (sql:where (:= :board (slot-value brd 'id))))))
-                    (format nil "~{~a~^ / ~}"
-                      (if threads
-                          (mapcar (lambda (thread)
-                                    (with-slots (id subject) thread
-                                      (with-html-string
-                                        (:span.thread (:a :href (format nil "/thread/~a" id) (format nil "#~a: ~a" id subject))))))
-                              threads)
-                          (list "No threads yet"))))))))
-              (:raw
-               (let ((threads (select-dao 'threads
-                                (sql:order-by (:desc :updated-at))
-                                (sql:limit 10)
-                                (sql:where (:= :board (slot-value brd 'id))))))
-                 (format nil "~{~a~^ / ~}"
-                   (if threads
-                       (let ((i 0))
-                         (mapcar (lambda (thread)
-                                   (incf i)
-                                   (with-slots (id subject name email comment) thread
-                                     (with-html-string
-                                       (:div.outer
-                                        (:div.inner
-                                         (:div.thrdmenu
-                                          (:a :href "#" "▼")
-                                          (:a :href "#" "▲")
-                                          (:a :href "#" "■"))
-                                         (:div.subject
-                                          (:b (format nil "[~a" i))
-                                          ":"
-                                          (:b "0]") ;; TODO: Number of comments
-                                          (:h2
-                                           (:a :href "#" subject)))
-                                         (:div.post
-                                          (:h3.posthead
-                                           (:button.num :onclick "#" "1")
-                                           " Name: "
-                                           (:span.name (format nil " ~a " name))
-                                           (:span.posttime "2014-04-01 16:16")) ;; TODO: `created-at` to timestamp
-                                          (:div.body
-                                           (:div.container
-                                            (:textarea.texme :readonly t comment))))
-                                         (:raw (reply-thread-box (slot-value brd 'id) (slot-value thread 'id))))))))
-                             threads))
-                       (list "No threads yet")))))
-              (:raw (new-thread-box (slot-value brd 'id)))))))
-        (string-response "Board not found"))))
+          (string-response "Board not found"))
+    (with-html-string
+      (with-html (:doctype)
+        (:html
+         (:head
+          (:title (format nil "Twoch - ~a" header))
+          (:style (:raw +style+))
+          (:link :rel "stylesheet"
+                 :href "https://unpkg.com/@highlightjs/cdn-assets@11.4.0/styles/default.min.css")
+          (:script :src "/static/texme.js"))
+         (:body
+          (:div.header#title
+           (:div.header-inner
+            (:h1 header)))
+          (:div.header#thrdlist
+           (:div.header-inner
+            (:div.links
+             (:raw
+              (let ((links (list '("#newthrd" . "New Thread")
+                                 '("/all" . "All Threads")
+                                 '("/hot" . "Most Popular Threads"))))
+                (format nil "~{~a~^ / ~}"
+                  (mapcar (lambda (link)
+                            (with-html-string
+                              (:a :href (format nil "/~a/~a" board-name (car link)) (cdr link))))
+                      links)))))
+            (:div
+             (:raw
+              (let ((threads (select-dao 'threads
+                               (sql:order-by (:desc :created-at))
+                               (sql:limit 10)
+                               (sql:where (:= :board (slot-value brd 'id))))))
+                (format nil "~{~a~^ / ~}"
+                  (if threads
+                      (mapcar (lambda (thread)
+                                (with-slots (id subject) thread
+                                  (with-html-string
+                                    (:span.thread (:a :href (format nil "/thread/~a" id) (format nil "#~a: ~a" id subject))))))
+                          threads)
+                      (list "No threads yet"))))))))
+          (:raw
+           (let ((threads (select-dao 'threads
+                            (sql:order-by (:desc :updated-at))
+                            (sql:limit 10)
+                            (sql:where (:= :board (slot-value brd 'id))))))
+             (format nil "~{~a~^ / ~}"
+               (if threads
+                   (let ((i 0))
+                     (mapcar (lambda (thread)
+                               (incf i)
+                               (with-slots (id subject name email comment) thread
+                                 (with-html-string
+                                   (:div.outer
+                                    (:div.inner
+                                     (:div.thrdmenu
+                                      (:a :href "#" "▼")
+                                      (:a :href "#" "▲")
+                                      (:a :href "#" "■"))
+                                     (:div.subject
+                                      (:b (format nil "[~a" i))
+                                      ":"
+                                      (:b "0]") ;; TODO: Number of comments
+                                      (:h2
+                                       (:a :href "#" subject)))
+                                     (:div.post
+                                      (:h3.posthead
+                                       (:button.num :onclick "#" "1")
+                                       " Name: "
+                                       (:span.name (format nil " ~a " name))
+                                       (:span.posttime "2014-04-01 16:16")) ;; TODO: `created-at` to timestamp
+                                      (:div.body
+                                       (:div.container
+                                        (:textarea.texme :readonly t comment))))
+                                     (:raw (reply-thread-box (slot-value brd 'id) (slot-value thread 'id))))))))
+                         threads))
+                   (list "No threads yet")))))
+          (:raw (new-thread-box (slot-value brd 'id)))))))))
 
 (with-route ("/" params)
   (declare (ignore params))
