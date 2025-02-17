@@ -1,3 +1,5 @@
 .DS_Store
 *.db
-.vscode/system-index.txt
+.vscode/
+.vscode/**
+system-index.txt
