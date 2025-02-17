@@ -334,8 +334,8 @@
             (:div.links
              (:raw
               (let ((links (list '("#newthrd" . "New Thread")
-                                 '("/all" . "All Threads")
-                                 '("/hot" . "Most Popular Threads"))))
+                                 '("all" . "All Threads")
+                                 '("hot" . "Most Popular Threads"))))
                 (format nil "~{~a~^ / ~}"
                   (mapcar (lambda (link)
                             (with-html-string
@@ -347,7 +347,7 @@
                                (sql:order-by (:desc :created-at))
                                (sql:limit 10)
                                (sql:where (:= :board (slot-value brd 'id))))))
-                (format nil "~{~a~^ / ~}"
+                (format nil "~{~a~^ ~}"
                   (if threads
                       (let ((i 0))
                         (mapcar (lambda (thrd)
