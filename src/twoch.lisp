@@ -34,7 +34,7 @@
 (ensure-table-exists 'replies)
 (loop for (name . title) in +boards+
       do (when (not (find-dao 'boards :name name))
-               (insert-dao (make-instance 'boards :name name :title title))))
+           (insert-dao (make-instance 'boards :name name :title title))))
 
 (defconstant +style+
   (style:css
@@ -183,6 +183,10 @@
       :margin "0.5em 0px")
      ("#boards"
       :text-align center)
+     (.upload
+      :background-color "transparent !important"
+      :border "none !important"
+      :width "100% !important")
      ("@media screen and (max-width: 480px)"
       (a
        :word-break break-all)))))
@@ -195,6 +199,7 @@
       (:span :style (style:inline-css '(:font-size 24px)) "New Thread")
       (:form
        :method "post" :action "/post"
+       :enctype "multipart/form-data"
        (:div.noshow
         (:input :name "board" :value board-id :type "hidden"))
        (:table
@@ -222,6 +227,10 @@
                    :value ""
                    :style (style:inline-css '(:width 100%)))))
          (:tr
+          (:td.label "File:")
+          (:td :colspan 3
+               (:input.upload :name "file" :type "file")))
+         (:tr
           (:td)
           (:td :colspan 3
                (:textarea :name "comment"
@@ -233,6 +242,7 @@
   (with-html-string
     (:form
      :method "post" :action "/reply"
+     :enctype "multipart/form-data"
      (:div.noshow
       (:input :name "board" :value board-id :type "hidden")
       (:input :name "thread" :value thread-id :type "hidden"))
@@ -255,17 +265,21 @@
                                  :name "preview"
                                  :value "Preview")))
        (:tr
+        (:td.label "File:")
+        (:td :colspan 5)
+        (:input.upload :type "file" :name "file"))
+       (:tr
         (:td.postfieldleft)
         (:td :colspan 5
              (:textarea.replybox
               :name "comment"
               :rows 8 :cols 72
-              :style (style:inline-css '(:width 100%))))
-        (:tr
-         (:td :colspan 6
-              (:a :href "#" "Entire Thread")
-              " "
-              (:a :href "#" "Thread List")))))))))
+              :style (style:inline-css '(:width 100%)))))
+       (:tr
+        (:td :colspan 6
+             (:a :href "#" "Entire Thread")
+             " "
+             (:a :href "#" "Thread List"))))))))
 
 (defun replies-truncated (board-id thread-id)
   (let ((reply-count (count-dao 'replies :board board-id :thread thread-id)))
@@ -283,35 +297,35 @@
                     (sql:limit 5)))
             (i -1))
         (setf html-out (concatenate 'string html-out
-                         (format nil "~{~a~^~}"
-                           (mapcar (lambda (rpl)
-                                     (incf i)
-                                     (with-slots (id name comment) rpl
-                                       (with-html-string
-                                         (:div.reply
-                                          (:h3.posthead
-                                           (:button.num :onclick "#" (format nil "~a" (- (+ reply-count (if (> reply-count 5) 3 2)) (abs (- i reply-count)))))
-                                           " Name: "
-                                           (:span.name (format nil " ~a " name))
-                                           (:span.posttime "2014-04-01 16:16"))
-                                          (:div.body
-                                           (:div.container
-                                            (:textarea.texme :readonly t comment)))))))
-                               (reverse rpls)))))
+                                    (format nil "~{~a~^~}"
+                                            (mapcar (lambda (rpl)
+                                                      (incf i)
+                                                      (with-slots (id name comment) rpl
+                                                        (with-html-string
+                                                          (:div.reply
+                                                           (:h3.posthead
+                                                            (:button.num :onclick "#" (format nil "~a" (- (+ reply-count (if (> reply-count 5) 3 2)) (abs (- i reply-count)))))
+                                                            " Name: "
+                                                            (:span.name (format nil " ~a " name))
+                                                            (:span.posttime "2014-04-01 16:16"))
+                                                           (:div.body
+                                                            (:div.container
+                                                             (:textarea.texme :readonly t comment)))))))
+                                                    (reverse rpls)))))
         html-out))))
 
 (defun board-links ()
   (format nil "~{~a~^ / ~}"
-    (loop for (name . title) in +boards+
-          collect (with-html-string
-                    (:a :href (format nil "/~a" name) (format nil "/~a/ - ~a" name title))))))
+          (loop for (name . title) in +boards+
+                collect (with-html-string
+                          (:a :href (format nil "/~a" name) (format nil "/~a/ - ~a" name title))))))
 
 (defun index-page (board-name header)
   (let ((brd (find-dao 'boards :name board-name)))
     (when (not brd)
-          (string-response "Board not found"))
+      (string-response "Board not found"))
     (when (not (eql (slot-value brd 'title) header))
-          (string-response "Board not found"))
+      (string-response "Board not found"))
     (with-html-string
       (with-html (:doctype)
         (:html
@@ -337,10 +351,10 @@
                                  '("all" . "All Threads")
                                  '("hot" . "Most Popular Threads"))))
                 (format nil "~{~a~^ / ~}"
-                  (mapcar (lambda (link)
-                            (with-html-string
-                              (:a :href (format nil "/~a/~a" board-name (car link)) (cdr link))))
-                      links)))))
+                        (mapcar (lambda (link)
+                                  (with-html-string
+                                    (:a :href (format nil "/~a/~a" board-name (car link)) (cdr link))))
+                                links)))))
             (:div
              (:raw
               (let ((threads (select-dao 'threads
@@ -348,53 +362,53 @@
                                (sql:limit 10)
                                (sql:where (:= :board (slot-value brd 'id))))))
                 (format nil "~{~a~^ ~}"
-                  (if threads
-                      (let ((i 0))
-                        (mapcar (lambda (thrd)
-                                  (incf i)
-                                  (with-html-string
-                                    (:span.thread
-                                     (:a :href (format nil "/thread/~a" (slot-value thrd 'id))
-                                         (format nil "#~a: ~a (~a)" i (slot-value thrd 'subject) (+ (count-dao 'replies :board (slot-value brd 'id) :thread (slot-value thrd 'id)) 1))))))
-                            threads))
-                      (list "No threads yet"))))))))
+                        (if threads
+                            (let ((i 0))
+                              (mapcar (lambda (thrd)
+                                        (incf i)
+                                        (with-html-string
+                                          (:span.thread
+                                           (:a :href (format nil "/thread/~a" (slot-value thrd 'id))
+                                               (format nil "#~a: ~a (~a)" i (slot-value thrd 'subject) (+ (count-dao 'replies :board (slot-value brd 'id) :thread (slot-value thrd 'id)) 1))))))
+                                      threads))
+                            (list "No threads yet"))))))))
           (:raw
            (let ((threads (select-dao 'threads
                             (sql:order-by (:desc :updated-at))
                             (sql:limit 10)
                             (sql:where (:= :board (slot-value brd 'id))))))
              (format nil "~{~a~^~}"
-               (if threads
-                   (let ((i 0))
-                     (mapcar (lambda (thread)
-                               (incf i)
-                               (with-slots (id subject name email comment) thread
-                                 (with-html-string
-                                   (:div.outer
-                                    (:div.inner
-                                     (:div.thrdmenu
-                                      (:a :href "#" "▼")
-                                      (:a :href "#" "▲")
-                                      (:a :href "#" "■"))
-                                     (:div.subject
-                                      (:b (format nil "[~a" i))
-                                      ":"
-                                      (:b (format nil "~a]" (+ (count-dao 'replies :board (slot-value brd 'id) :thread (slot-value thread 'id)) 1)))
-                                      (:h2
-                                       (:a :href "#" subject)))
-                                     (:div.post
-                                      (:h3.posthead
-                                       (:button.num :onclick "#" "1")
-                                       " Name: "
-                                       (:span.name (format nil " ~a " name))
-                                       (:span.posttime "2014-04-01 16:16")) ;; TODO: `created-at` to timestamp
-                                      (:div.body
-                                       (:div.container
-                                        (:textarea.texme :readonly t comment))))
-                                     (:raw (replies-truncated (slot-value brd 'id) (slot-value thread 'id)))
-                                     (:raw (reply-thread-box (slot-value brd 'id) (slot-value thread 'id))))))))
-                         threads))
-                   (list "No threads yet")))))
+                     (if threads
+                         (let ((i 0))
+                           (mapcar (lambda (thread)
+                                     (incf i)
+                                     (with-slots (id subject name email comment) thread
+                                       (with-html-string
+                                         (:div.outer
+                                          (:div.inner
+                                           (:div.thrdmenu
+                                            (:a :href "#" "▼")
+                                            (:a :href "#" "▲")
+                                            (:a :href "#" "■"))
+                                           (:div.subject
+                                            (:b (format nil "[~a" i))
+                                            ":"
+                                            (:b (format nil "~a]" (+ (count-dao 'replies :board (slot-value brd 'id) :thread (slot-value thread 'id)) 1)))
+                                            (:h2
+                                             (:a :href "#" subject)))
+                                           (:div.post
+                                            (:h3.posthead
+                                             (:button.num :onclick "#" "1")
+                                             " Name: "
+                                             (:span.name (format nil " ~a " name))
+                                             (:span.posttime "2014-04-01 16:16")) ;; TODO: `created-at` to timestamp
+                                            (:div.body
+                                             (:div.container
+                                              (:textarea.texme :readonly t comment))))
+                                           (:raw (replies-truncated (slot-value brd 'id) (slot-value thread 'id)))
+                                           (:raw (reply-thread-box (slot-value brd 'id) (slot-value thread 'id))))))))
+                                   threads))
+                         (list "No threads yet")))))
           (:raw (new-thread-box (slot-value brd 'id)))))))))
 
 (with-route ("/" params)
@@ -411,13 +425,14 @@
 
 (defmacro create-board-routes ()
   `(progn
-     ,@(mapcar (lambda (board)
-                 (let ((name (car board)) (title (cdr board)))
-                   `(set-route ,(format nil "/~a" name)
-                              (lambda (params)
-                                (declare (ignore params))
-                                (html-response (index-page ,name ,title))))))
-          +boards+)))
+     ,@(mapcar
+        (lambda (board)
+          (let ((name (car board)) (title (cdr board)))
+            `(set-route ,(format nil "/~a" name)
+                        (lambda (params)
+                          (declare (ignore params))
+                          (html-response (index-page ,name ,title))))))
+        +boards+)))
 
 (create-board-routes)
 
@@ -427,43 +442,69 @@
                                (name "name")
                                (email "email")
                                (comment "comment"))
-    (if (or (zerop (length comment))
-            (zerop (length subject)))
-        (html-response "Comment and Subject are required")
-        (let ((brd (find-dao 'boards :id board)))
-          (if brd
-              (let ((name (if (zerop (length name)) "Anonymous" name)))
-                (insert-dao (make-instance 'threads
-                              :board (slot-value brd 'id)
-                              :subject subject
-                              :name name
-                              :email email
-                              :comment comment))
-                (string-response "Post created successfully"))
-              (string-response "Board not found"))))))
+                       (block ass-block
+                         (loop for row in params
+                               for name = (first row)
+                               when (string= name "file")
+                               do (destructuring-bind (stream filename content-type)
+                                      (rest row)
+                                    (when stream
+                                      (let ((byte-count 0)
+                                            (buffer (make-array 8192 :element-type '(unsigned-byte 8)))
+                                            (full-path (merge-pathnames filename "/twoch/static/uploads/")))
+                                        (ensure-directories-exist full-path)
+                                        (handler-case
+                                            (with-open-file (out full-path
+                                                                 :direction :output
+                                                                 :element-type '(unsigned-byte 8)
+                                                                 :if-exists :supersede)
+                                              (loop for bytes-read = (read-sequence buffer stream)
+                                                    while (> bytes-read 0)
+                                                    do (progn
+                                                         (incf byte-count bytes-read)
+                                                         (when (> byte-count 10000000)
+                                                           (return-from ass-block (string-response "File too large, 10mb limit")))
+                                                         (write-sequence buffer out :end bytes-read)))
+                                              (format t "Uploaded: ~a ~a ~a" filename content-type byte-count))
+                                          (error (e)
+                                            (return-from ass-block (string-response (format nil "Error uploading file: ~a" (princ-to-string e))))))))))
+                         (if (or (zerop (length comment))
+                                 (zerop (length subject)))
+                             (html-response "Comment and Subject are required")
+                             (let ((brd (find-dao 'boards :id board)))
+                               (if brd
+                                   (let ((name (if (zerop (length name)) "Anonymous" name)))
+                                     (insert-dao (make-instance 'threads
+                                                                :board (slot-value brd 'id)
+                                                                :subject subject
+                                                                :name name
+                                                                :email email
+                                                                :comment comment))
+                                     (string-response "Post created successfully"))
+                                   (string-response "Board not found")))))))
 
-(with-route ("/reply" params :method :POST)
-  (with-request-params params ((board "board")
-                               (thread "thread")
-                               (name "name")
-                               (email "email")
-                               (comment "comment"))
-    (when (zerop (length comment))
-      (string-response "Comment is required"))
-    (let ((name (if (zerop (length name)) "Anonymous" name))
-          (brd (find-dao 'boards :id board)))
-      (when (not brd)
-            (string-response "Board not found"))
-      (let ((thrd (find-dao 'threads :id thread :board (slot-value brd 'id))))
-        (when (not thrd)
-              (string-response "Thread not found"))
-        (insert-dao (make-instance 'replies
-                              :board (slot-value brd 'id)
-                              :thread (slot-value thrd 'id)
-                              :name name
-                              :email email
-                              :comment comment))
-        (string-response "Reply created successfully")))))
+  (with-route ("/reply" params :method :POST)
+    (with-request-params params ((board "board")
+                                 (thread "thread")
+                                 (name "name")
+                                 (email "email")
+                                 (comment "comment"))
+                         (when (zerop (length comment))
+                           (string-response "Comment is required"))
+                         (let ((name (if (zerop (length name)) "Anonymous" name))
+                               (brd (find-dao 'boards :id board)))
+                           (when (not brd)
+                             (string-response "Board not found"))
+                           (let ((thrd (find-dao 'threads :id thread :board (slot-value brd 'id))))
+                             (when (not thrd)
+                               (string-response "Thread not found"))
+                             (insert-dao (make-instance 'replies
+                                                        :board (slot-value brd 'id)
+                                                        :thread (slot-value thrd 'id)
+                                                        :name name
+                                                        :email email
+                                                        :comment comment))
+                             (string-response "Reply created successfully")))))
 
 (start :static-root "/twoch/static/"
        :address "0.0.0.0")

@@ -15,7 +15,8 @@
                  :spinneret/ps
                  :cl-css
                  :jonathan
-                 :mito)
+                 :mito
+                 :cl-fad)
     :pathname "src"
     :components ((:file "ninglex")
                  (:file "package")
