@@ -5,12 +5,12 @@
 (connect-toplevel :sqlite3 :database-name "twoch.db")
 
 (deftable boards ()
-  ((id :col-type :integer :auto-increment t :primary-key t)
+  ((id :col-type :serial :primary-key t)
    (name :col-type :text :not-null t :unique t)
    (title :col-type :text :not-null t)))
 
 (deftable threads ()
-  ((id :col-type :integer :auto-increment t :primary-key t)
+  ((id :col-type :serial :primary-key t)
    (board :references (boards id))
    (subject :col-type :text :not-null t)
    (email :col-type :text)
@@ -18,7 +18,7 @@
    (comment :col-type :text :not-null t)))
 
 (deftable replies ()
-  ((id :col-type :integer :auto-increment t :primary-key t)
+  ((id :col-type :serial :primary-key t)
    (board :references (boards id))
    (thread :references (threads id))
    (name :col-type :text :not-null t :default "Anonymous")
@@ -29,13 +29,16 @@
 (ensure-table-exists 'threads)
 (ensure-table-exists 'replies)
 
+(defun get-boards ()
+  (mapcar (lambda (board)
+            (cons (slot-value board 'name)
+                  (slot-value board 'title)))
+          (select-dao 'boards)))
+
 (defparameter *static-root* "/twoch/static/")
-(defparameter *uploads-dir* (merge-pathnames "/twoch/staticuploads/" *static-root*))
+(defparameter *uploads-dir* (merge-pathnames "uploads/" *static-root*))
 (defparameter *max-upload-size* 10485760)
-(defparameter *boards* (mapcar (lambda (board)
-                                 (cons (slot-value board 'name)
-                                       (slot-value board 'title)))
-                           (select-dao 'boards)))
+(defparameter *boards* (get-boards))
 
 (defconstant +style+
   (style:css
@@ -228,16 +231,16 @@
                    :value ""
                    :style (style:inline-css '(:width 100%)))))
          (:tr
-          (:td.label "File:")
-          (:td :colspan 3
-               (:input.upload :name "file" :type "file")))
-         (:tr
           (:td)
           (:td :colspan 3
                (:textarea :name "comment"
                           :rows 8
                           :cols 72
-                          :style (style:inline-css '(:width 100%))))))))))))
+                          :style (style:inline-css '(:width 100%)))))
+        (:tr
+          (:td.label "File:")
+          (:td :colspan 3
+               (:input.upload :name "file" :type "file"))))))))))
 
 (defun reply-thread-box (board-id thread-id)
   (with-html-string
@@ -266,10 +269,6 @@
                                  :name "preview"
                                  :value "Preview")))
        (:tr
-        (:td.label "File:")
-        (:td :colspan 5)
-        (:input.upload :type "file" :name "file"))
-       (:tr
         (:td.postfieldleft)
         (:td :colspan 5
              (:textarea.replybox
@@ -277,7 +276,10 @@
               :rows 8 :cols 72
               :style (style:inline-css '(:width 100%)))))
        (:tr
-        (:td :colspan 6
+        (:td.label "File:")
+        (:td :colspan 3)
+        (:input.upload :type "file" :name "file")
+        (:td :colspan 2
              (:a :href "#" "Entire Thread")
              " "
              (:a :href "#" "Thread List"))))))))
@@ -423,13 +425,31 @@
        (:body
         (:h2 "Twoch")
         (:raw
-         (board-links)))))))
+         (board-links))
+         (:hr)
+         (:form
+          :method "post" :action "/board"
+          (:input :name "name" :value "" :type "text")
+          (:input :name "title" :value "" :type "text")
+          (:input :type "submit" :value "Create Board")))))))
 
 (with-route ("/:name" params)
   (let ((brd (find-dao 'boards :name (cdr (assoc :name params)))))
     (if brd
         (index-page (slot-value brd 'name) (slot-value brd 'title))
         (string-response "Board not found"))))
+
+(with-route ("/board" params :method :POST)
+  (with-request-params params ((name "name")
+                               (title "title"))
+    (if (find-dao 'boards :name name)
+        (string-response "Board already exists")
+        (progn
+         (insert-dao (make-instance 'boards
+                       :name name
+                       :title title))
+         (setf *boards* (get-boards))
+         (string-response "Board created successfully")))))
 
 (with-route ("/post" params :method :POST)
   (with-request-params params ((board "board")
@@ -447,32 +467,30 @@
         (loop for row in params
               for name = (first row)
                 when (string= name "file")
-              do (destructuring-bind (stream filename content-type)
-                    (rest row)
-                  (progn
-                    (when (not stream)
-                          (return-from ass-block (string-response "No file uploaded")))
-                    (let ((byte-count 0)
-                          (buffer (make-array 8192 :element-type '(unsigned-byte 8)))
-                          (full-path (merge-pathnames filename *uploads-dir*)))
-                      (ensure-directories-exist full-path)
-                      (handler-case
-                          (with-open-file (out full-path
-                                              :direction :output
-                                              :element-type '(unsigned-byte 8)
-                                              :if-exists :supersede)
-                            (loop for bytes-read = (read-sequence buffer stream)
-                                  while (> bytes-read 0)
-                                  do (progn
-                                      (incf byte-count bytes-read)
-                                      (when (> byte-count *max-upload-size*)
-                                            ;; TODO: Delete orphaned uploads
-                                            (return-from ass-block (string-response "File too large, 10mb limit")))
-                                      (write-sequence buffer out :end bytes-read)))
-                            (format t "Uploaded: ~a ~a ~a" filename content-type byte-count))
-                        (error (e)
-                          ;; TODO: Delete orphaned uploads
-                          (return-from ass-block (string-response (format nil "Error uploading file: ~a" (princ-to-string e))))))))))
+              do (destructuring-bind (stream filename content-type) (rest row) 
+                       (when (not stream)
+                             (return-from ass-block (string-response "No file uploaded")))
+                         (let ((byte-count 0)
+                               (buffer (make-array 8192 :element-type '(unsigned-byte 8)))
+                               (full-path (merge-pathnames filename *uploads-dir*)))
+                           (ensure-directories-exist full-path)
+                           (handler-case
+                               (with-open-file (out full-path
+                                                   :direction :output
+                                                   :element-type '(unsigned-byte 8)
+                                                   :if-exists :supersede)
+                                 (loop for bytes-read = (read-sequence buffer stream)
+                                       while (> bytes-read 0)
+                                       do (progn
+                                           (incf byte-count bytes-read)
+                                           (when (> byte-count *max-upload-size*)
+                                                 ;; TODO: Delete orphaned uploads
+                                                 (return-from ass-block (string-response "File too large, 10mb limit")))
+                                           (write-sequence buffer out :end bytes-read)))
+                                 (format t "Uploaded: ~a ~a ~a" filename content-type byte-count))
+                             (error (e)
+                               ;; TODO: Delete orphaned uploads
+                               (return-from ass-block (string-response (format nil "Error uploading file: ~a" (princ-to-string e)))))))))
         (let ((name (if (zerop (length name)) "Anonymous" name)))
           (insert-dao (make-instance 'threads
                         :board (slot-value brd 'id)
@@ -498,11 +516,11 @@
         (when (not thrd)
               (string-response "Thread not found"))
         (insert-dao (make-instance 'replies
-                              :board (slot-value brd 'id)
-                              :thread (slot-value thrd 'id)
-                              :name name
-                              :email email
-                              :comment comment))
+                      :board (slot-value brd 'id)
+                      :thread (slot-value thrd 'id)
+                      :name name
+                      :email email
+                      :comment comment))
         (string-response "Reply created successfully")))))
 
 (start :static-root *static-root*
