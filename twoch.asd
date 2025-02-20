@@ -1,9 +1,9 @@
 ;;;; twoch.asd
 
 (asdf:defsystem #:twoch
-    :description "Describe twoch here"
-    :author "Your Name <your.name@example.com>"
-    :license  "Specify license here"
+    :description "2ch clone"
+    :author "George Watson <gigolo@hotmail.co.uk>"
+    :license "GPLv3"
     :version "0.0.1"
     :serial t
     :depends-on (:hunchentoot
@@ -16,8 +16,10 @@
                  :cl-css
                  :jonathan
                  :mito
-                 :cl-fad)
+                 :cl-fad
+                 :log4cl)
     :pathname "src"
     :components ((:file "ninglex")
+                 (:file "mime-types")
                  (:file "package")
                  (:file "twoch")))
