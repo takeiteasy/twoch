@@ -240,7 +240,7 @@
         (:tr
           (:td.label "File:")
           (:td :colspan 3
-               (:input.upload :name "file" :type "file"))))))))))
+               (:input.upload :name "file" :type "file" :multiple t))))))))))
 
 (defun reply-thread-box (board-id thread-id)
   (with-html-string
@@ -280,6 +280,7 @@
         (:td :colspan 3)
         (:input.upload :type "file" :name "file")
         (:td :colspan 2
+             ;; TODO: Fix broken links
              (:a :href "#" "Entire Thread")
              " "
              (:a :href "#" "Thread List"))))))))
@@ -334,11 +335,13 @@
       (with-html (:doctype)
         (:html
          (:head
-          (:title (format nil "Twoch - ~a" header))
+          (:title (format nil "/~a/ - ~a" board-name header))
           (:style (:raw +style+))
           (:link :rel "stylesheet"
                  :href "https://unpkg.com/@highlightjs/cdn-assets@11.4.0/styles/default.min.css")
           (:script :src "/static/texme.js"))
+          ;; TODO: Add script to search for backlinks
+          ;; TODO: API/route to check backlinks client-side
          (:body
           (:div.header#title
            (:div.header-inner
@@ -351,9 +354,9 @@
            (:div.header-inner
             (:div.links
              (:raw
-              (let ((links '(("#newthrd" . "New Thread")
-                             ("all" . "All Threads")
-                             ("hot" . "Most Popular Threads"))))
+              (let ((links '(("#newthrd" . "New Thread") ;; TODO
+                             ("all" . "All Threads") ;; TODO
+                             ("hot" . "Most Popular Threads")))) ;; TODO
                 (format nil "~{~a~^ / ~}"
                   (mapcar (lambda (link)
                             (with-html-string
@@ -391,6 +394,7 @@
                                    (:div.outer
                                     (:div.inner
                                      (:div.thrdmenu
+                                      ;; TODO: Fix broken links
                                       (:a :href "#" "▼")
                                       (:a :href "#" "▲")
                                       (:a :href "#" "■"))
@@ -399,9 +403,11 @@
                                       ":"
                                       (:b (format nil "~a]" (+ (count-dao 'replies :board (slot-value brd 'id) :thread (slot-value thread 'id)) 1)))
                                       (:h2
+                                       ;; TODO: Fix broken links
                                        (:a :href "#" subject)))
                                      (:div.post
                                       (:h3.posthead
+                                       ;; TODO: Fix broken links
                                        (:button.num :onclick "#" "1")
                                        " Name: "
                                        (:span.name (format nil " ~a " name))
@@ -467,6 +473,7 @@
         (loop for row in params
               for name = (first row)
                 when (string= name "file")
+              ;; TODO: Move this to a separate function + use with reply
               do (destructuring-bind (stream filename content-type) (rest row) 
                        (when (not stream)
                              (return-from ass-block (string-response "No file uploaded")))
@@ -505,7 +512,9 @@
                                (thread "thread")
                                (name "name")
                                (email "email")
-                               (comment "comment"))
+                               (comment "comment")
+                               (file "file"))
+    ;; TODO: Handle file upload
     (when (zerop (length comment))
       (string-response "Comment is required"))
     (let ((name (if (zerop (length name)) "Anonymous" name))
