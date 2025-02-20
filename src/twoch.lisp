@@ -25,9 +25,19 @@
    (email :col-type :text)
    (comment :col-type :text :not-null t)))
 
+(deftable attachments ()
+  ((id :col-type :serial :primary-key t)
+   (board :references (boards id))
+   (thread :references (threads id))
+   (reply :references (replies id) :default nil)
+   (filename :col-type :text :not-null t)
+   (content-type :col-type :text :not-null t)
+   (size :col-type :integer :not-null t)))
+
 (ensure-table-exists 'boards)
 (ensure-table-exists 'threads)
 (ensure-table-exists 'replies)
+(ensure-table-exists 'attachments)
 
 (defun get-boards ()
   (mapcar (lambda (board)
@@ -278,7 +288,7 @@
        (:tr
         (:td.label "File:")
         (:td :colspan 3)
-        (:input.upload :type "file" :name "file")
+        (:input.upload :type "file" :name "file" :multiple t)
         (:td :colspan 2
              ;; TODO: Fix broken links
              (:a :href "#" "Entire Thread")
@@ -295,6 +305,7 @@
                           (:div.recent
                            "The 5 newest replies are shown below."
                            (:br)
+                           ;; TODO: Fix broken links
                            (:a :href "#" "Read this thread from the beginning.")))
                         "")))
       (let ((rpls (select-dao 'replies
@@ -313,8 +324,10 @@
                           (with-html-string
                            (:div.reply
                             (:h3.posthead
+                             ;; TODO: Fix broken links
                              (:button.num :onclick "#" (format nil "~a" (- (+ reply-count (if (> reply-count 5) 3 2)) (abs (- i reply-count)))))
                              " Name: "
+                             ;; TODO: If email, add link
                              (:span.name (format nil " ~a " name))
                              (:span.posttime (timestamp-to-string created-at)))
                             (:div.body
@@ -344,7 +357,8 @@
           (:link :rel "stylesheet"
                  :href "https://unpkg.com/@highlightjs/cdn-assets@11.4.0/styles/default.min.css")
           (:script :src "/static/texme.js"))
-          ;; TODO: Add script to search for backlinks
+          ;; TODO: Add script to search for backlinks + linkify other links
+          ;; TODO: Spoiler tags
           ;; TODO: API/route to check backlinks client-side
          (:body
           (:div.header#title
@@ -414,6 +428,7 @@
                                       (:h3.posthead
                                        ;; TODO: Fix broken links
                                        (:button.num :onclick "#" "1")
+                                       ;; TODO: If email, add link
                                        " Name: "
                                        (:span.name (format nil " ~a " name))
                                        (:span.posttime (timestamp-to-string created-at)))
@@ -483,6 +498,7 @@
               do (destructuring-bind (stream filename content-type) (rest row) 
                        (progn
                         (when (> (length filename) 0)
+                              ;; TODO: Check content-type + mime-type
                               (when (not stream)
                                     (return-from ass-block (string-response "No file uploaded")))
                               (let ((byte-count 0)
@@ -503,6 +519,7 @@
                                                       ;; TODO: Delete orphaned uploads
                                                       (return-from ass-block (string-response "File too large, 10mb limit")))
                                                 (write-sequence buffer out :end bytes-read)))
+                                      ;; TODO: Add to attachments table
                                       (log:info "Uploaded file" filename content-type byte-count))
                                   (error (e)
                                     ;; TODO: Delete orphaned uploads
@@ -522,8 +539,7 @@
                                (thread "thread")
                                (name "name")
                                (email "email")
-                               (comment "comment")
-                               (file "file"))
+                               (comment "comment"))
     ;; TODO: Handle file upload
     (when (zerop (length comment))
       (string-response "Comment is required"))
