@@ -20,6 +20,5 @@
                  :log4cl)
     :pathname "src"
     :components ((:file "ninglex")
-                 (:file "mime-types")
                  (:file "package")
                  (:file "twoch")))
